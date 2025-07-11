@@ -1,0 +1,300 @@
+/* 翻訳ボタンのスタイル */
+#gemini-translate-button {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #4285f4, #34a853);
+  border: 2px solid white;
+  border-radius: 50%;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s ease;
+  user-select: none;
+  font-family: system-ui, -apple-system, sans-serif;
+  pointer-events: auto !important;
+  z-index: 999999 !important;
+  opacity: 0;
+  transform: scale(0.8);
+  animation: fadeInScale 0.2s ease-out forwards;
+  position: absolute !important;
+}
+
+@keyframes fadeInScale {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+#gemini-translate-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+#gemini-translate-button:active {
+  transform: scale(0.95);
+}
+
+/* 翻訳結果ポップアップのスタイル */
+#gemini-translation-result {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  z-index: 10001;
+  max-width: 600px;
+  min-width: 350px;
+  max-height: 80vh;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, sans-serif;
+  animation: fadeInScale 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.translation-header {
+  background: linear-gradient(135deg, #4285f4, #34a853);
+  color: white;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  transition: background 0.3s ease;
+  cursor: move;
+  position: relative;
+}
+
+.translation-header:hover {
+  background: linear-gradient(135deg, #3367d6, #2e7d32);
+}
+
+.translation-header.dragging {
+  cursor: grabbing;
+  background: linear-gradient(135deg, #1a73e8, #1b5e20);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.translation-content {
+  padding: 16px;
+  transition: all 0.3s ease;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.original-text,
+.translated-text {
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.original-text:last-child,
+.translated-text:last-child {
+  margin-bottom: 0;
+}
+
+.original-text strong,
+.translated-text strong {
+  color: #333;
+  font-weight: 600;
+}
+
+.original-text {
+  color: #666;
+  font-size: 14px;
+  max-height: 80px;
+  overflow: hidden;
+  position: relative;
+}
+
+.original-text.expanded {
+  max-height: none;
+  overflow: visible;
+}
+
+.original-text-content {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.original-text.expanded .original-text-content {
+  display: block;
+  -webkit-line-clamp: unset;
+}
+
+.text-toggle {
+  color: #4285f4;
+  cursor: pointer;
+  font-size: 12px;
+  margin-top: 4px;
+  user-select: none;
+  display: inline-block;
+}
+
+.text-toggle:hover {
+  text-decoration: underline;
+}
+
+.translated-text {
+  color: #333;
+  font-size: 16px;
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  line-height: 1.6;
+  position: relative;
+}
+
+.copy-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #4285f4;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  padding: 6px 8px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+  user-select: none;
+  z-index: 1;
+}
+
+.copy-button:hover {
+  background: #3367d6;
+  transform: scale(1.05);
+}
+
+.copy-button:active {
+  transform: scale(0.95);
+}
+
+.copy-button.copied {
+  background: #34a853;
+}
+
+.copy-button .copy-icon {
+  font-size: 14px;
+}
+
+.copy-tooltip {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  background: #333;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: all 0.2s ease;
+  pointer-events: none;
+  margin-bottom: 4px;
+}
+
+.copy-button:hover .copy-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 翻訳中のローディング表示 */
+.loading-text {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #666;
+  font-size: 14px;
+  background: #f0f8ff;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e3f2fd;
+  border-top: 2px solid #4285f4;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* エラー表示 */
+.error-header {
+  background: linear-gradient(135deg, #dc3545, #c82333) !important;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #721c24;
+  font-size: 14px;
+  background: #f8d7da;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 8px;
+  border: 1px solid #f5c6cb;
+}
+
+.error-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+
