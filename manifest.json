@@ -8,6 +8,11 @@
     "storage",
     "scripting"
   ],
+  "commands": {
+    "translate-selection": {
+      "description": "選択したテキストを翻訳"
+    }
+  },
   "host_permissions": [
     "https://generativelanguage.googleapis.com/*"
   ],

@@ -2,10 +2,25 @@ let translateButton = null;
 let isTranslating = false;
 let selectionTimeout = null;
 let isSelecting = false;
+let pinnedPopups = [];  // ピン留めされたポップアップを管理
 
 document.addEventListener('mousedown', handleSelectionStart);
 document.addEventListener('mouseup', handleSelectionEnd);
 document.addEventListener('keyup', handleKeyboardSelection);
+
+// バックグラウンドスクリプトからのメッセージを受信
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'translateSelection') {
+    const selection = window.getSelection();
+    const selectedText = selection.toString().trim();
+    
+    if (selectedText.length >= 3) {
+      translateSelectedText();
+    } else {
+      showError('翻訳するテキストを選択してください（3文字以上）');
+    }
+  }
+});
 
 document.addEventListener('mousedown', (e) => {
   if (translateButton && !translateButton.contains(e.target)) {
@@ -170,7 +185,10 @@ function showTranslatingPopup(originalText) {
   loadingDiv.innerHTML = `
     <div class="translation-header">
       <span>Gemini翻訳中...</span>
-      <button class="close-btn" onclick="this.parentElement.parentElement.remove()">×</button>
+      <div class="header-buttons">
+        <button class="pin-btn" title="ピン留め">📌</button>
+        <button class="close-btn" >×</button>
+      </div>
     </div>
     <div class="translation-content">
       ${createOriginalTextHtml(originalText)}
@@ -190,6 +208,9 @@ function showTranslatingPopup(originalText) {
   
   // ドラッグ機能を設定
   setupPopupDrag(loadingDiv);
+  
+  // イベントリスナーを設定
+  setupPopupEventListeners(loadingDiv);
 }
 
 function showTranslationResult(originalText, translatedText) {
@@ -199,7 +220,10 @@ function showTranslationResult(originalText, translatedText) {
     existingPopup.innerHTML = `
       <div class="translation-header">
         <span>Gemini翻訳結果</span>
-        <button class="close-btn" onclick="this.parentElement.parentElement.remove()">×</button>
+        <div class="header-buttons">
+          <button class="pin-btn" title="ピン留め">📌</button>
+          <button class="close-btn" >×</button>
+        </div>
       </div>
       <div class="translation-content">
         ${createOriginalTextHtml(originalText)}
@@ -215,19 +239,20 @@ function showTranslationResult(originalText, translatedText) {
     
     // コピーボタンを設定
     setupCopyButton();
-
-    setTimeout(() => {
-      if (existingPopup.parentNode) {
-        existingPopup.remove();
-      }
-    }, 10000);
+    
+    // イベントリスナーを再設定
+    setupPopupEventListeners(existingPopup);
+    
   } else {
     const resultDiv = document.createElement('div');
     resultDiv.id = 'gemini-translation-result';
     resultDiv.innerHTML = `
       <div class="translation-header">
         <span>Gemini翻訳結果</span>
-        <button class="close-btn" onclick="this.parentElement.parentElement.remove()">×</button>
+        <div class="header-buttons">
+          <button class="pin-btn" title="ピン留め">📌</button>
+          <button class="close-btn" >×</button>
+        </div>
       </div>
       <div class="translation-content">
         ${createOriginalTextHtml(originalText)}
@@ -247,6 +272,9 @@ function showTranslationResult(originalText, translatedText) {
     
     // コピーボタンを設定
     setupCopyButton();
+    
+    // イベントリスナーを設定
+    setupPopupEventListeners(resultDiv);
   }
 }
 
@@ -269,7 +297,9 @@ function showError(message) {
     existingPopup.innerHTML = `
       <div class="translation-header error-header">
         <span>翻訳エラー</span>
-        <button class="close-btn" onclick="this.parentElement.parentElement.remove()">×</button>
+        <div class="header-buttons">
+          <button class="close-btn" >×</button>
+        </div>
       </div>
       <div class="translation-content">
         <div class="error-message">
@@ -281,6 +311,9 @@ function showError(message) {
     
     // ドラッグ機能を再設定
     setupPopupDrag(existingPopup);
+    
+    // イベントリスナーを再設定
+    setupPopupEventListeners(existingPopup);
 
   } else {
     const errorDiv = document.createElement('div');
@@ -288,7 +321,9 @@ function showError(message) {
     errorDiv.innerHTML = `
       <div class="translation-header error-header">
         <span>翻訳エラー</span>
-        <button class="close-btn" onclick="this.parentElement.parentElement.remove()">×</button>
+        <div class="header-buttons">
+          <button class="close-btn" >×</button>
+        </div>
       </div>
       <div class="translation-content">
         <div class="error-message">
@@ -304,13 +339,17 @@ function showError(message) {
     
     // ドラッグ機能を設定
     setupPopupDrag(errorDiv);
+    
+    // イベントリスナーを設定
+    setupPopupEventListeners(errorDiv);
   }
 }
 
 function setupPopupClickOutside(popup) {
   setTimeout(() => {
     const handleOutsideClick = (e) => {
-      if (popup && !popup.contains(e.target)) {
+      // ピン留めされている場合は外部クリックで削除しない
+      if (popup && !popup.contains(e.target) && !popup.classList.contains('pinned')) {
         popup.remove();
         document.removeEventListener('click', handleOutsideClick);
       }
@@ -321,6 +360,10 @@ function setupPopupClickOutside(popup) {
     popup.addEventListener('click', (e) => {
       e.stopPropagation();
     });
+    
+    // ピン留め状態が変わった時にイベントリスナーを管理するため、
+    // ポップアップにhandleOutsideClick関数を保存
+    popup._handleOutsideClick = handleOutsideClick;
   }, 100);
 }
 
@@ -564,4 +607,89 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// ピン留め機能（グローバルスコープで定義）
+window.togglePin = function(popup) {
+  const pinBtn = popup.querySelector('.pin-btn');
+  
+  if (popup.classList.contains('pinned')) {
+    // ピン留め解除
+    popup.classList.remove('pinned');
+    pinBtn.textContent = '📌';
+    pinBtn.title = 'ピン留め';
+    
+    // ピン留め配列から削除
+    const index = pinnedPopups.indexOf(popup);
+    if (index > -1) {
+      pinnedPopups.splice(index, 1);
+    }
+    
+    // ポップアップを中央に戻す
+    popup.style.position = 'fixed';
+    popup.style.top = '50%';
+    popup.style.left = '50%';
+    popup.style.right = 'auto';
+    popup.style.transform = 'translate(-50%, -50%)';
+  } else {
+    // ピン留め設定
+    popup.classList.add('pinned');
+    pinBtn.textContent = '📍';
+    pinBtn.title = 'ピン留め解除';
+    
+    // ピン留め配列に追加
+    if (!pinnedPopups.includes(popup)) {
+      pinnedPopups.push(popup);
+    }
+    
+    // ピン留めされたポップアップの位置を調整
+    repositionPinnedPopups();
+  }
+};
+
+// ピン留めされたポップアップの位置を調整
+function repositionPinnedPopups() {
+  pinnedPopups.forEach((popup, index) => {
+    if (popup && popup.parentNode) {
+      const offsetY = index * 20;
+      popup.style.top = `${50 + offsetY}px`;
+      popup.style.right = '20px';
+      popup.style.left = 'auto';
+      popup.style.transform = 'none';
+    }
+  });
+}
+
+// ポップアップを閉じる関数（グローバルスコープで定義）
+window.closePopup = function(popup) {
+  // ピン留め配列から削除
+  const index = pinnedPopups.indexOf(popup);
+  if (index > -1) {
+    pinnedPopups.splice(index, 1);
+  }
+  
+  // ポップアップを削除
+  popup.remove();
+  
+  // 残りのピン留めポップアップの位置を再調整
+  repositionPinnedPopups();
+};
+
+// ポップアップのイベントリスナーを設定する関数
+function setupPopupEventListeners(popup) {
+  // ピン留めボタンのイベントリスナー
+  const pinBtn = popup.querySelector('.pin-btn');
+  if (pinBtn) {
+    pinBtn.addEventListener('click', function() {
+      window.togglePin(popup);
+    });
+  }
+  
+  // 閉じるボタンのイベントリスナー
+  const closeBtn = popup.querySelector('.close-btn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', function() {
+      window.closePopup(popup);
+    });
+  }
 }

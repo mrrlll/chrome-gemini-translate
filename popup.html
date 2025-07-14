@@ -7,10 +7,12 @@
   <style>
     body {
       width: 350px;
+      min-height: 750px;
       padding: 20px;
       font-family: system-ui, -apple-system, sans-serif;
       margin: 0;
       background: #f8f9fa;
+      overflow-y: auto;
     }
 
     .header {
@@ -141,7 +143,7 @@
     }
 
     .usage-section {
-      margin-top: 20px;
+      margin-top: 16px;
       padding: 16px;
       background: white;
       border-radius: 8px;
@@ -164,6 +166,154 @@
 
     .usage-section li {
       margin-bottom: 6px;
+    }
+
+    .history-btn, .clear-history-btn {
+      background: #f8f9fa;
+      color: #333;
+      border: 1px solid #ddd;
+      font-size: 12px;
+      padding: 8px 12px;
+    }
+
+    .history-btn:hover, .clear-history-btn:hover {
+      background: #e9ecef;
+    }
+
+    .clear-history-btn {
+      background: #fff5f5;
+      color: #dc3545;
+      border-color: #dc3545;
+    }
+
+    .clear-history-btn:hover {
+      background: #dc3545;
+      color: white;
+    }
+
+    .history-section {
+      margin-top: 16px;
+      padding: 16px;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
+    }
+
+    .history-header h3 {
+      margin: 0;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .close-history-btn {
+      background: none;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 0;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .history-item {
+      padding: 8px;
+      border: 1px solid #eee;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+
+    .history-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .history-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .history-item-date {
+      color: #666;
+      font-size: 10px;
+    }
+
+    .history-item-delete {
+      background: none;
+      border: none;
+      color: #dc3545;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 2px 4px;
+    }
+
+    .history-item-text {
+      margin-bottom: 4px;
+    }
+
+    .history-original {
+      color: #666;
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+
+    .history-translation {
+      color: #333;
+      font-size: 11px;
+    }
+
+    .shortcut-section {
+      margin-top: 16px;
+      padding: 16px;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .shortcut-section h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .shortcut-section p {
+      margin: 0 0 12px 0;
+      font-size: 12px;
+      color: #666;
+      line-height: 1.4;
+    }
+
+    .shortcut-btn {
+      background: linear-gradient(135deg, #4285f4, #34a853);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+
+    .shortcut-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(66, 133, 244, 0.3);
     }
   </style>
 </head>
@@ -199,7 +349,23 @@
     </div>
   </form>
 
+  <div class="button-group" style="margin-top: 16px;">
+    <button type="button" class="history-btn" id="historyBtn">履歴を表示</button>
+    <button type="button" class="clear-history-btn" id="clearHistoryBtn">履歴をクリア</button>
+  </div>
+
   <div id="statusMessage" class="status-message"></div>
+
+  <!-- 履歴表示エリア -->
+  <div id="historySection" class="history-section" style="display: none;">
+    <div class="history-header">
+      <h3>翻訳履歴</h3>
+      <button id="closeHistoryBtn" class="close-history-btn">×</button>
+    </div>
+    <div id="historyContent" class="history-content">
+      <!-- 履歴項目がここに動的に追加される -->
+    </div>
+  </div>
 
   <div class="usage-section">
     <h3>使用方法</h3>
@@ -209,6 +375,15 @@
       <li>自動的に言語を検出して翻訳されます</li>
       <li>日本語→英語、英語→日本語、その他→日本語</li>
     </ul>
+  </div>
+
+  <div class="shortcut-section">
+    <h3>キーボードショートカット</h3>
+    <p>選択テキストの翻訳にキーボードショートカットを設定できます。</p>
+    <button id="openShortcutSettings" class="shortcut-btn">ショートカットを設定</button>
+    <div class="help-text">
+      Chrome拡張機能の管理ページが開きます
+    </div>
   </div>
 
   <script src="popup.js"></script>
