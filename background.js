@@ -11,54 +11,35 @@ chrome.commands.onCommand.addListener((command) => {
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  const actions = {
+    translate: () => translateText(request.text),
+    getHistory: () => getTranslationHistory(request.limit),
+    deleteHistoryItem: () => deleteHistoryItem(request.itemId),
+    clearHistory: () => clearTranslationHistory()
+  };
 
-  if (request.action === 'translate') {
-    translateText(request.text)
-      .then(translation => {
-        sendResponse({ success: true, translation });
-      })
-      .catch(error => {
-        console.error('翻訳エラー:', error);
-        sendResponse({ success: false, error: error.message });
-      });
-    return true;
+  const action = actions[request.action];
+  if (!action) {
+    sendResponse({ success: false, error: 'Unknown action' });
+    return false;
   }
 
-  if (request.action === 'getHistory') {
-    getTranslationHistory(request.limit)
-      .then(history => {
-        sendResponse({ success: true, history });
-      })
-      .catch(error => {
-        sendResponse({ success: false, error: error.message });
-      });
-    return true;
-  }
-
-  if (request.action === 'deleteHistoryItem') {
-    deleteHistoryItem(request.itemId)
-      .then(success => {
-        sendResponse({ success });
-      })
-      .catch(error => {
-        sendResponse({ success: false, error: error.message });
-      });
-    return true;
-  }
-
-  if (request.action === 'clearHistory') {
-    clearTranslationHistory()
-      .then(success => {
-        sendResponse({ success });
-      })
-      .catch(error => {
-        sendResponse({ success: false, error: error.message });
-      });
-    return true;
-  }
-
-  sendResponse({ success: false, error: 'Unknown action' });
-  return false;
+  action()
+    .then(result => {
+      if (request.action === 'translate') {
+        sendResponse({ success: true, translation: result });
+      } else if (request.action === 'getHistory') {
+        sendResponse({ success: true, history: result });
+      } else {
+        sendResponse({ success: result });
+      }
+    })
+    .catch(error => {
+      console.error(`${request.action}エラー:`, error);
+      sendResponse({ success: false, error: error.message });
+    });
+  
+  return true;
 });
 
 async function translateText(text) {
@@ -116,7 +97,7 @@ async function translateText(text) {
 
     const data = await response.json();
     
-    // レスポンスの構造を程密にチェック
+    // レスポンスの構造を厳密にチェック
     if (!data || typeof data !== 'object') {
       console.error('Invalid response: not an object:', data);
       throw new Error('翻訳APIからのレスポンスが不正です。');
@@ -200,8 +181,10 @@ async function translateText(text) {
     }
     
     
-    // 翻訳履歴に保存
-    await saveTranslationHistory(text, translation);
+    // 翻訳履歴に保存（非同期で実行してパフォーマンス向上）
+    saveTranslationHistory(text, translation).catch(error => 
+      console.warn('履歴保存に失敗:', error)
+    );
     
     return translation;
   } catch (error) {

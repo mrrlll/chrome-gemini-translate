@@ -1,8 +1,11 @@
-let translateButton = null;
-let isTranslating = false;
-let selectionTimeout = null;
-let isSelecting = false;
-let pinnedPopups = [];  // ピン留めされたポップアップを管理
+// グローバル状態管理
+const state = {
+  translateButton: null,
+  isTranslating: false,
+  selectionTimeout: null,
+  isSelecting: false,
+  pinnedPopups: [] // ピン留めされたポップアップを管理
+};
 
 document.addEventListener('mousedown', handleSelectionStart);
 document.addEventListener('mouseup', handleSelectionEnd);
@@ -22,39 +25,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-document.addEventListener('mousedown', (e) => {
-  if (translateButton && !translateButton.contains(e.target)) {
-    hideTranslateButton();
-  }
-});
 
 function handleSelectionStart(e) {
-  isSelecting = true;
+  state.isSelecting = true;
   hideTranslateButton();
 
-  if (selectionTimeout) {
-    clearTimeout(selectionTimeout);
-    selectionTimeout = null;
+  if (state.selectionTimeout) {
+    clearTimeout(state.selectionTimeout);
+    state.selectionTimeout = null;
   }
 }
 
 function handleSelectionEnd(e) {
-  isSelecting = false;
+  state.isSelecting = false;
 
-  selectionTimeout = setTimeout(() => {
-    if (!isSelecting) {
+  state.selectionTimeout = setTimeout(() => {
+    if (!state.isSelecting) {
       checkAndShowButton();
     }
   }, 100);
 }
 
 function handleKeyboardSelection(e) {
-  if (!isSelecting) {
-    if (selectionTimeout) {
-      clearTimeout(selectionTimeout);
+  if (!state.isSelecting) {
+    if (state.selectionTimeout) {
+      clearTimeout(state.selectionTimeout);
     }
 
-    selectionTimeout = setTimeout(() => {
+    state.selectionTimeout = setTimeout(() => {
       checkAndShowButton();
     }, 200);
   }
@@ -77,10 +75,10 @@ function showTranslateButton(selection) {
   const range = selection.getRangeAt(0);
   const rect = range.getBoundingClientRect();
 
-  translateButton = document.createElement('div');
-  translateButton.id = 'gemini-translate-button';
-  translateButton.innerHTML = '🌐';
-  translateButton.title = 'Geminiで翻訳';
+  state.translateButton = document.createElement('div');
+  state.translateButton.id = 'gemini-translate-button';
+  state.translateButton.innerHTML = '🌐';
+  state.translateButton.title = 'Geminiで翻訳';
 
   let left = rect.right + 10;
   let top = rect.top + window.scrollY;
@@ -93,55 +91,61 @@ function showTranslateButton(selection) {
     top = rect.bottom + window.scrollY + 5;
   }
 
-  translateButton.style.position = 'absolute';
-  translateButton.style.left = left + 'px';
-  translateButton.style.top = top + 'px';
-  translateButton.style.zIndex = '10000';
+  Object.assign(state.translateButton.style, {
+    position: 'absolute',
+    left: left + 'px',
+    top: top + 'px',
+    zIndex: '10000'
+  });
 
-  translateButton.onclick = function(e) {
+  const handleClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
     translateSelectedText();
   };
 
-  translateButton.addEventListener('click', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    translateSelectedText();
-  }, { capture: true });
+  state.translateButton.onclick = handleClick;
+  state.translateButton.addEventListener('mousedown', (e) => e.stopPropagation());
 
-  translateButton.addEventListener('mousedown', function(e) {
-    e.stopPropagation();
-  });
-
-  document.body.appendChild(translateButton);
+  document.body.appendChild(state.translateButton);
+  
+  // 外部クリックリスナーを追加
+  setTimeout(() => {
+    const handleOutsideClick = (e) => {
+      if (state.translateButton && !state.translateButton.contains(e.target)) {
+        hideTranslateButton();
+        document.removeEventListener('click', handleOutsideClick);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+  }, 100);
 }
 
 function hideTranslateButton() {
-  if (translateButton) {
-    translateButton.remove();
-    translateButton = null;
+  if (state.translateButton) {
+    state.translateButton.remove();
+    state.translateButton = null;
   }
 
-  if (selectionTimeout) {
-    clearTimeout(selectionTimeout);
-    selectionTimeout = null;
+  if (state.selectionTimeout) {
+    clearTimeout(state.selectionTimeout);
+    state.selectionTimeout = null;
   }
 }
 
 async function translateSelectedText() {
-  if (isTranslating) return;
+  if (state.isTranslating) return;
 
   const selection = window.getSelection();
   const selectedText = selection.toString().trim();
 
   if (!selectedText) return;
 
-  isTranslating = true;
+  state.isTranslating = true;
 
-  if (translateButton) {
-    translateButton.innerHTML = '⏳';
-    translateButton.style.pointerEvents = 'none';
+  if (state.translateButton) {
+    state.translateButton.innerHTML = '⏳';
+    state.translateButton.style.pointerEvents = 'none';
   }
 
   showTranslatingPopup(selectedText);
@@ -172,7 +176,7 @@ async function translateSelectedText() {
   } catch (error) {
     showError('翻訳中にエラーが発生しました: ' + error.message);
   } finally {
-    isTranslating = false;
+    state.isTranslating = false;
     hideTranslateButton();
   }
 }
@@ -510,9 +514,11 @@ function createTranslatedTextHtml(translatedText) {
 function setupCopyButton() {
   const copyButtons = document.querySelectorAll('.copy-button[data-copy-id]');
   copyButtons.forEach(button => {
-    // 既存のイベントリスナーを削除して重複を防ぐ
-    button.removeEventListener('click', handleCopyClick);
-    button.addEventListener('click', handleCopyClick);
+    // イベントリスナーが未設定の場合のみ追加
+    if (!button.dataset.listenerAdded) {
+      button.addEventListener('click', handleCopyClick);
+      button.dataset.listenerAdded = 'true';
+    }
   });
 }
 
@@ -603,10 +609,14 @@ function showCopyError(button) {
   }, 2000);
 }
 
+// HTMLエスケープ関数（パフォーマンス最適化）
 function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ピン留め機能（グローバルスコープで定義）
@@ -620,9 +630,9 @@ window.togglePin = function(popup) {
     pinBtn.title = 'ピン留め';
     
     // ピン留め配列から削除
-    const index = pinnedPopups.indexOf(popup);
+    const index = state.pinnedPopups.indexOf(popup);
     if (index > -1) {
-      pinnedPopups.splice(index, 1);
+      state.pinnedPopups.splice(index, 1);
     }
     
     // ポップアップを中央に戻す
@@ -638,8 +648,8 @@ window.togglePin = function(popup) {
     pinBtn.title = 'ピン留め解除';
     
     // ピン留め配列に追加
-    if (!pinnedPopups.includes(popup)) {
-      pinnedPopups.push(popup);
+    if (!state.pinnedPopups.includes(popup)) {
+      state.pinnedPopups.push(popup);
     }
     
     // ピン留めされたポップアップの位置を調整
@@ -649,7 +659,7 @@ window.togglePin = function(popup) {
 
 // ピン留めされたポップアップの位置を調整
 function repositionPinnedPopups() {
-  pinnedPopups.forEach((popup, index) => {
+  state.pinnedPopups.forEach((popup, index) => {
     if (popup && popup.parentNode) {
       const offsetY = index * 20;
       popup.style.top = `${50 + offsetY}px`;
@@ -663,9 +673,9 @@ function repositionPinnedPopups() {
 // ポップアップを閉じる関数（グローバルスコープで定義）
 window.closePopup = function(popup) {
   // ピン留め配列から削除
-  const index = pinnedPopups.indexOf(popup);
+  const index = state.pinnedPopups.indexOf(popup);
   if (index > -1) {
-    pinnedPopups.splice(index, 1);
+    state.pinnedPopups.splice(index, 1);
   }
   
   // ポップアップを削除

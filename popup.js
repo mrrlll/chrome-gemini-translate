@@ -1,33 +1,31 @@
 // ポップアップのJavaScript
 document.addEventListener('DOMContentLoaded', function() {
-  const settingsForm = document.getElementById('settingsForm');
-  const apiKeyInput = document.getElementById('apiKey');
-  const modelSelect = document.getElementById('modelSelect');
-  const testBtn = document.getElementById('testBtn');
-  const statusMessage = document.getElementById('statusMessage');
-  const historyBtn = document.getElementById('historyBtn');
-  const clearHistoryBtn = document.getElementById('clearHistoryBtn');
-  const historySection = document.getElementById('historySection');
-  const closeHistoryBtn = document.getElementById('closeHistoryBtn');
-  const historyContent = document.getElementById('historyContent');
-  const openShortcutSettings = document.getElementById('openShortcutSettings');
+  // DOM要素を一括取得
+  const elements = {
+    settingsForm: document.getElementById('settingsForm'),
+    apiKeyInput: document.getElementById('apiKey'),
+    modelSelect: document.getElementById('modelSelect'),
+    testBtn: document.getElementById('testBtn'),
+    statusMessage: document.getElementById('statusMessage'),
+    historyBtn: document.getElementById('historyBtn'),
+    clearHistoryBtn: document.getElementById('clearHistoryBtn'),
+    historySection: document.getElementById('historySection'),
+    closeHistoryBtn: document.getElementById('closeHistoryBtn'),
+    historyContent: document.getElementById('historyContent'),
+    openShortcutSettings: document.getElementById('openShortcutSettings')
+  };
 
-  chrome.storage.sync.get(['geminiApiKey', 'geminiModel'], function(result) {
-    if (result.geminiApiKey) {
-      apiKeyInput.value = result.geminiApiKey;
-    }
-    if (result.geminiModel) {
-      modelSelect.value = result.geminiModel;
-    } else {
-      modelSelect.value = 'gemini-2.5-flash';
-    }
+  // 設定を読み込み
+  chrome.storage.sync.get(['geminiApiKey', 'geminiModel'], (result) => {
+    elements.apiKeyInput.value = result.geminiApiKey || '';
+    elements.modelSelect.value = result.geminiModel || 'gemini-2.5-flash';
   });
 
-  settingsForm.addEventListener('submit', function(e) {
+  elements.settingsForm.addEventListener('submit', (e) => {
     e.preventDefault();
 
-    const apiKey = apiKeyInput.value.trim();
-    const selectedModel = modelSelect.value;
+    const apiKey = elements.apiKeyInput.value.trim();
+    const selectedModel = elements.modelSelect.value;
 
     if (!apiKey) {
       showMessage('APIキーを入力してください', 'error');
@@ -37,42 +35,36 @@ document.addEventListener('DOMContentLoaded', function() {
     chrome.storage.sync.set({
       geminiApiKey: apiKey,
       geminiModel: selectedModel
-    }, function() {
-      showMessage('設定が保存されました', 'success');
-    });
+    }, () => showMessage('設定が保存されました', 'success'));
   });
 
-  testBtn.addEventListener('click', async function() {
-    const apiKey = apiKeyInput.value.trim();
-    const selectedModel = modelSelect.value;
+  elements.testBtn.addEventListener('click', async () => {
+    const apiKey = elements.apiKeyInput.value.trim();
+    const selectedModel = elements.modelSelect.value;
 
     if (!apiKey) {
       showMessage('APIキーを入力してください', 'error');
       return;
     }
 
-    testBtn.disabled = true;
-    testBtn.textContent = 'テスト中...';
+    elements.testBtn.disabled = true;
+    elements.testBtn.textContent = 'テスト中...';
 
     try {
       const isValid = await testApiKey(apiKey, selectedModel);
-      if (isValid) {
-        showMessage('APIキーが有効です', 'success');
-      } else {
-        showMessage('APIキーが無効です', 'error');
-      }
+      showMessage(isValid ? 'APIキーが有効です' : 'APIキーが無効です', isValid ? 'success' : 'error');
     } catch (error) {
       showMessage(`テストエラー: ${error.message}`, 'error');
     } finally {
-      testBtn.disabled = false;
-      testBtn.textContent = 'テスト';
+      elements.testBtn.disabled = false;
+      elements.testBtn.textContent = 'テスト';
     }
   });
 
   function showMessage(message, type) {
-    statusMessage.textContent = message;
-    statusMessage.className = `status-message ${type}`;
-    statusMessage.style.display = 'block';
+    elements.statusMessage.textContent = message;
+    elements.statusMessage.className = `status-message ${type}`;
+    elements.statusMessage.style.display = 'block';
   }
 
   async function testApiKey(apiKey, model) {
@@ -123,12 +115,12 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // 履歴表示ボタンのイベントリスナー
-  historyBtn.addEventListener('click', async function() {
+  elements.historyBtn.addEventListener('click', async () => {
     try {
       const response = await chrome.runtime.sendMessage({ action: 'getHistory', limit: 20 });
       if (response.success) {
         window.displayHistory(response.history);
-        historySection.style.display = 'block';
+        elements.historySection.style.display = 'block';
       } else {
         showMessage('履歴の取得に失敗しました', 'error');
       }
@@ -138,32 +130,30 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // 履歴クリアボタンのイベントリスナー
-  clearHistoryBtn.addEventListener('click', async function() {
-    if (confirm('翻訳履歴をすべて削除しますか？')) {
-      try {
-        const response = await chrome.runtime.sendMessage({ action: 'clearHistory' });
-        if (response.success) {
-          showMessage('履歴をクリアしました', 'success');
-          historyContent.innerHTML = '<p style="text-align: center; color: #666; font-size: 12px;">履歴がありません</p>';
-        } else {
-          showMessage('履歴のクリアに失敗しました', 'error');
-        }
-      } catch (error) {
-        showMessage(`履歴クリアエラー: ${error.message}`, 'error');
+  elements.clearHistoryBtn.addEventListener('click', async () => {
+    if (!confirm('翻訳履歴をすべて削除しますか？')) return;
+    
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'clearHistory' });
+      if (response.success) {
+        showMessage('履歴をクリアしました', 'success');
+        elements.historyContent.innerHTML = '<p style="text-align: center; color: #666; font-size: 12px;">履歴がありません</p>';
+      } else {
+        showMessage('履歴のクリアに失敗しました', 'error');
       }
+    } catch (error) {
+      showMessage(`履歴クリアエラー: ${error.message}`, 'error');
     }
   });
 
   // 履歴を閉じるボタンのイベントリスナー
-  closeHistoryBtn.addEventListener('click', function() {
-    historySection.style.display = 'none';
+  elements.closeHistoryBtn.addEventListener('click', () => {
+    elements.historySection.style.display = 'none';
   });
 
   // キーボードショートカット設定ボタンのイベントリスナー
-  openShortcutSettings.addEventListener('click', function() {
-    chrome.tabs.create({
-      url: 'chrome://extensions/shortcuts'
-    });
+  elements.openShortcutSettings.addEventListener('click', () => {
+    chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
   });
 
   // 履歴を表示する関数（グローバルスコープに移動）
